@@ -1,0 +1,139 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ *
+ * @return array
+ */
+function views_style_autoload_menu() {
+  $items['admin/config/development/views_style_autoload_config'] = array(
+    'title'            => 'Views style autoload',
+    'description'      => 'Adjust views style autoload settings.',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('views_style_autoload_settings'),
+    'access arguments' => array('administer site configuration'),
+    'file'             => 'views_style_autoload.pages.inc',
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_node_load().
+ *
+ * @param $nodes
+ * @param $types
+ */
+function views_style_autoload_node_load($nodes, $types) {
+  if (!empty($types)) {
+    foreach ($types as $type) {
+      $file_name = 'node-type-' . $type;
+      views_style_autoload_load_style($file_name, 'node');
+    }
+  }
+}
+
+/**
+ * Implements hook_views_pre_view().
+ *
+ * Add styles to view.
+ */
+function views_style_autoload_views_pre_view(&$view, &$display_id, &$args) {
+  $show_debug_information = variable_get('views_style_autoload_settings_debug', 0);
+  if ($show_debug_information == 1) {
+    $message = t('Used view: @view_name with display: @display.', array(
+      '@view_name' => $view->name,
+      '@display'   => $display_id,
+    ));
+    drupal_set_message($message);
+  }
+
+  if (!empty($view->name)) {
+    $views_machine_name = $view->name;
+    $views_machine_name = views_style_autoload_prepare_name($views_machine_name);
+
+    // load global style.
+    views_style_autoload_load_style($views_machine_name, 'views');
+
+    // Load style for current display.
+    $views_display_id = views_style_autoload_prepare_name($display_id);
+    if (!empty($views_machine_name) && !empty($views_display_id)) {
+      $current_view_style = $views_machine_name . '-' . $views_display_id;
+      views_style_autoload_load_style($current_view_style, 'views');
+    }
+
+    // Add classes to view.
+    $views_classes = $view->display_handler->get_option('css_class');
+    if (!empty($views_machine_name)) {
+      $views_classes .= ' ' . $views_machine_name;
+    }
+    if (!empty($current_view_style)) {
+      $views_classes .= ' ' . $current_view_style;
+    }
+    $view->display_handler->set_option('css_class', $views_classes);
+  }
+}
+
+
+/**
+ * Implements hook_ctools_render_alter().
+ */
+function views_style_autoload_ctools_render_alter(&$info, &$page, &$context) {
+  if (!empty($context['handler']->name)) {
+    // Add stylesheet.
+    $file_name = $context['handler']->name;
+    $file_name = views_style_autoload_prepare_name($file_name);
+    views_style_autoload_load_style($file_name, 'page');
+
+    // Add classes to body
+    $panel_body_css = &drupal_static('panel_body_css');
+    if (!empty($panel_body_css['body_classes_to_add'])) {
+      $panel_body_css['body_classes_to_add'] = $panel_body_css['body_classes_to_add'] . ' ' . $file_name;
+    }
+    else {
+      $panel_body_css['body_classes_to_add'] = $file_name;
+    }
+  }
+}
+
+
+/**
+ * Load style.
+ *
+ * @param $file_name
+ */
+function views_style_autoload_load_style($file_name, $type) {
+  // Define path
+  static $style_path;
+  if ($style_path == FALSE) {
+    $style_path = $files_path = variable_get('views_style_autoload_files_path', '');
+  }
+
+  // Add file.
+  $file_path = $style_path . '/' . $type . '/' . $file_name . '.css';
+  if (file_exists($file_path)) {
+    drupal_add_css($file_path);
+  }
+
+  // Show debug information.
+  $show_debug_information = variable_get('views_style_autoload_settings_debug', 0);
+  if ($show_debug_information == 1) {
+    if (file_exists($file_path)) {
+      $message = t('Loaded file: @style_path', array(
+        '@style_path' => $file_path,
+      ));
+      $type = 'status';
+    }
+    else {
+      $message = t('You can use: @style_path', array(
+        '@style_path' => $file_path,
+      ));
+      $type = 'warning';
+    }
+    drupal_set_message($message, $type);
+  }
+}
+
+function views_style_autoload_prepare_name($name) {
+  $name = str_replace('_', '-', $name);
+  return $name;
+}

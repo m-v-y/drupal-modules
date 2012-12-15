@@ -1,0 +1,4 @@
+name = Style autoload
+description = Load styles based on view name
+package = Addons
+core = 7.x
