@@ -6,15 +6,39 @@
  * @return array
  */
 function views_style_autoload_menu() {
-  $items['admin/config/development/views_style_autoload_config'] = array(
-    'title'            => 'Views style autoload',
-    'description'      => 'Adjust views style autoload settings.',
-    'page callback'    => 'drupal_get_form',
-    'page arguments'   => array('views_style_autoload_settings'),
-    'access arguments' => array('administer site configuration'),
+  $items['admin/structure/views/view/%views_ui_cache/style_autoload'] = array(
+    'title'            => 'Style autoload',
+    'access arguments' => array('administer views style autoload'),
+    'page callback'    => 'views_style_autoload_view_page',
+    'page arguments'   => array('views', 4),
+    'type'             => MENU_VISIBLE_IN_BREADCRUMB,
     'file'             => 'views_style_autoload.pages.inc',
   );
   return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function views_style_autoload_permission() {
+  return array(
+    'administer views style autoload' => array(
+      'title'       => t('Administer views style autoload'),
+      'description' => t('Perform administration tasks for views style autoload.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_views_ui_display_top_links_alter().
+ *
+ * Adds link to views autoload settings form.
+ */
+function views_style_autoload_views_ui_display_top_links_alter(&$links, $view, $display_id) {
+  $links['style_autoload'] = array(
+    'title' => t('style autoload'),
+    'href'  => "admin/structure/views/view/$view->name/style_autoload"
+  );
 }
 
 /**
@@ -32,7 +56,9 @@ function views_style_autoload_views_pre_view(&$view, &$display_id, &$args) {
     drupal_set_message($message);
   }
 
-  if (!empty($view->name)) {
+  $used_views = variable_get('views_style_autoload_used_views', array());
+
+  if (!empty($view->name) && in_array($view->name, array_keys($used_views))) {
     $views_machine_name = $view->name;
     $views_machine_name = views_style_autoload_prepare_name($views_machine_name);
 
@@ -56,45 +82,6 @@ function views_style_autoload_views_pre_view(&$view, &$display_id, &$args) {
     }
     $view->display_handler->set_option('css_class', $views_classes);
   }
-}
-
-/**
- * Attach to views form checkox.
- *
- * @param $form
- * @param $form_state
- * @param $form_id
- */
-function views_style_autoload_form_alter(&$form, &$form_state, $form_id) {
-  $views_style_autoload_views = variable_get('views_style_autoload_views', array());
-//  dpm($views_style_autoload_views);
-
-  if ($form_id == 'views_ui_edit_display_form') {
-    if (!empty($form['options']['#section']) && $form['options']['#section'] == 'default-css_class') {
-      if (!empty($form_state['view']->name)) {
-        $form['options']['use_css_autoload'] = array(
-          '#prefix'      => '<div id="use_css_autoload_wrap">111</div>',
-          '#type'        => 'checkbox',
-          '#title'       => t('Use style autoload'),
-          '#description' => 'Check it, if you want use css autoload',
-          '#ajax'        => array(
-            'callback' => 'views_style_autoload_save_settings',
-            'wrapper'  => 'use_css_autoload_wrap',
-          ),
-        );
-      }
-    }
-  }
-}
-
-function views_style_autoload_save_settings($form, $form_state) {
-  $views_style_autoload_views = variable_get('views_style_autoload_views', array());
-
-  $views_style_autoload_views['fs'] = $form_state;
-  $views_style_autoload_views['f'] = $form;
-  $views_style_autoload_views['ff'] = 111;
-
-  variable_set('views_style_autoload_views', $views_style_autoload_views);
 }
 
 /**
