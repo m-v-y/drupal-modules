@@ -14,6 +14,16 @@ function views_style_autoload_menu() {
     'type'             => MENU_VISIBLE_IN_BREADCRUMB,
     'file'             => 'views_style_autoload.pages.inc',
   );
+
+  $items['admin/config/development/views_style_autoload_settings'] = array(
+    'title'            => 'Style autoload global settings',
+    'access arguments' => array('configure views style autoload'),
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('views_style_autoload_settings'),
+    'type'             => MENU_NORMAL_ITEM,
+    'file'             => 'views_style_autoload.pages.inc',
+  );
+
   return $items;
 }
 
@@ -25,6 +35,10 @@ function views_style_autoload_permission() {
     'administer views style autoload' => array(
       'title'       => t('Administer views style autoload'),
       'description' => t('Perform administration tasks for views style autoload.'),
+    ),
+    'configure views style autoload'  => array(
+      'title'       => t('Configure views style autoload'),
+      'description' => t('Perform configuration tasks for views style autoload.'),
     ),
   );
 }
@@ -53,7 +67,7 @@ function views_style_autoload_views_pre_view(&$view, &$display_id, &$args) {
       '@view_name' => $view->name,
       '@display'   => $display_id,
     ));
-    drupal_set_message($message);
+    drupal_set_message($message, 'status', FALSE);
   }
 
   $used_views = variable_get('views_style_autoload_used_views', array());
@@ -117,7 +131,7 @@ function views_style_autoload_load_style($file_name, $type) {
       ));
       $type = 'warning';
     }
-    drupal_set_message($message, $type);
+    drupal_set_message($message, $type, FALSE);
   }
 }
 

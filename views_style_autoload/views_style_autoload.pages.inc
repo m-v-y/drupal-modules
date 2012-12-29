@@ -7,8 +7,7 @@
  * @param $form_state
  * @return array
  */
-function views_style_autoload_settings($form, $form_state) {
-  // Show debug information.
+function views_style_autoload_settings($form, &$form_state) {
   $show_debug_information = variable_get('views_style_autoload_settings_debug', 0);
   $form['show_debug'] = array(
     '#type'          => 'checkbox',
@@ -16,7 +15,6 @@ function views_style_autoload_settings($form, $form_state) {
     '#default_value' => $show_debug_information,
   );
 
-  // Custom files path.
   $files_path = variable_get('views_style_autoload_files_path', '');
   if (empty($files_path)) {
     $default_theme = variable_get('theme_default', '');
@@ -29,18 +27,6 @@ function views_style_autoload_settings($form, $form_state) {
     '#default_value' => $files_path,
   );
 
-  // List of excluded views.
-  $excluded_views = variable_get('views_style_autoload_settings_excl_views', '');
-  if (!empty($excluded_views)) {
-    $excluded_views = implode("\r\n", $excluded_views);
-  }
-  $form['excluded_views'] = array(
-    '#type'          => 'textarea',
-    '#title'         => t('Excluded views'),
-    '#description'   => 'Input excluded views names. One per line.',
-    '#default_value' => $excluded_views,
-  );
-
   $form['submit'] = array(
     '#type'  => 'submit',
     '#value' => t('Save'),
@@ -50,32 +36,53 @@ function views_style_autoload_settings($form, $form_state) {
 }
 
 /**
- * Submit handler for module settings form.
+ * Validate handler for module settings form.
  *
  * @see views_style_autoload_settings().
  *
  * @param $form
  * @param $form_state
  */
-function views_style_autoload_settings_submit($form, $form_state) {
+function views_style_autoload_settings_validate($form, &$form_state) {
+  // Validate empty path.
+  if (empty($form_state['values']['files_path'])) {
+    $message = 'The field "Styles path" must be filled';
+    form_set_error('files_path', $message);
+  }
+
+  // Validate invalid path
+  $is_directory_exist = is_dir($form_state['values']['files_path']);
+  if ($is_directory_exist == FALSE) {
+    $message = t('The directory @dir not exist', array(
+      '@dir' => $form_state['values']['files_path'],
+    ));
+    form_set_error('files_path', $message);
+  }
+}
+
+/**
+ * Submit handler for module settings form.
+ *
+ * Save module settings.
+ *
+ * @see views_style_autoload_settings().
+ *
+ * @param $form
+ * @param $form_state
+ */
+function views_style_autoload_settings_submit($form, &$form_state) {
   if (isset($form_state['values']['show_debug'])) {
     variable_set('views_style_autoload_settings_debug', $form_state['values']['show_debug']);
   }
 
   if (!empty($form_state['values']['files_path'])) {
+    $form_state['values']['files_path'] = filter_xss($form_state['values']['files_path'], array());
     variable_set('views_style_autoload_files_path', $form_state['values']['files_path']);
-  }
-
-  if (!empty($form_state['values']['excluded_views'])) {
-    $excluede_views = $form_state['values']['excluded_views'];
-    $excluede_views = filter_xss($excluede_views);
-    $excluede_views = explode("\r\n", $excluede_views);
-    variable_set('views_style_autoload_settings_excl_views', $excluede_views);
   }
 }
 
 /**
- * Settings page for style autoload form.
+ * Settings page for style auto load form.
  *
  * @param $object_type
  * @param $object_value
@@ -98,7 +105,7 @@ function views_style_autoload_view_page($object_type, $object_value, $language =
 }
 
 /**
- * Views autoload form.
+ * Views auto load settings form.
  */
 function views_style_autoload_view_form($form, $form_state) {
   if (empty($form_state['build_info']['args'][0]['view'])) {
@@ -116,6 +123,12 @@ function views_style_autoload_view_form($form, $form_state) {
   );
 
   $used_views = variable_get('views_style_autoload_used_views', array());
+
+  $items = array();
+  $items[] = t('Base ccs class: .@class', array('@class' => views_style_autoload_prepare_name($view->name)));
+  $form['help'] = array(
+    '#markup' => theme('item_list', array('items' => $items, 'title' => t('Help'))),
+  );
 
   $form['is_active'] = array(
     '#title'         => t('Use style autoload'),
